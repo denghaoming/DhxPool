@@ -99,14 +99,8 @@ export const FOMOPool_ABI = [
 		"type": "function"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "adr",
-				"type": "address"
-			}
-		],
-		"name": "setCashAddress",
+		"inputs": [],
+		"name": "renounceOwnership",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -120,11 +114,11 @@ export const FOMOPool_ABI = [
 			},
 			{
 				"internalType": "uint256",
-				"name": "lastTicketAmount",
+				"name": "joinCount",
 				"type": "uint256"
 			}
 		],
-		"name": "setLastTicketAmount",
+		"name": "setJoinCount",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -138,11 +132,11 @@ export const FOMOPool_ABI = [
 			},
 			{
 				"internalType": "uint256",
-				"name": "poolDuration",
+				"name": "perTokenAmount",
 				"type": "uint256"
 			}
 		],
-		"name": "setPoolDuration",
+		"name": "setPerTokenAmount",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -172,8 +166,14 @@ export const FOMOPool_ABI = [
 		"type": "event"
 	},
 	{
-		"inputs": [],
-		"name": "renounceOwnership",
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "adr",
+				"type": "address"
+			}
+		],
+		"name": "setCashAddress",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -218,11 +218,11 @@ export const FOMOPool_ABI = [
 			},
 			{
 				"internalType": "uint256",
-				"name": "joinCount",
+				"name": "lastTicketAmount",
 				"type": "uint256"
 			}
 		],
-		"name": "setJoinCount",
+		"name": "setLastTicketAmount",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -267,11 +267,11 @@ export const FOMOPool_ABI = [
 			},
 			{
 				"internalType": "uint256",
-				"name": "perTokenAmount",
+				"name": "poolDuration",
 				"type": "uint256"
 			}
 		],
-		"name": "setPerTokenAmount",
+		"name": "setPoolDuration",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -507,6 +507,11 @@ export const FOMOPool_ABI = [
 		"outputs": [
 			{
 				"internalType": "uint256[]",
+				"name": "currentPoolIds",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "uint256[]",
 				"name": "perTokenAmount",
 				"type": "uint256[]"
 			},
@@ -631,6 +636,11 @@ export const FOMOPool_ABI = [
 		],
 		"name": "getCurrentPoolInfo",
 		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "currentPid",
+				"type": "uint256"
+			},
 			{
 				"internalType": "uint256",
 				"name": "perTokenAmount",
@@ -763,6 +773,25 @@ export const FOMOPool_ABI = [
 				"type": "address"
 			}
 		],
+		"name": "getUserAllPoolJoined",
+		"outputs": [
+			{
+				"internalType": "bool[]",
+				"name": "userJoined",
+				"type": "bool[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
 		"name": "getUserInfo",
 		"outputs": [
 			{
@@ -813,6 +842,11 @@ export const FOMOPool_ABI = [
 			{
 				"internalType": "uint256",
 				"name": "ticketAllowance",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "mxcPoolReward",
 				"type": "uint256"
 			}
 		],

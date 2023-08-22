@@ -6,8 +6,8 @@ import loading from '../../components/loading/Loading'
 import toast from '../../components/toast/toast'
 import Web3 from 'web3'
 import { ERC20_ABI } from "../../abi/erc20"
-import { FOMO_Abi } from '../../abi/FOMO_Abi'
-import { showCountdownTime, showFromWei, showAccount, showLongAccount } from '../../utils'
+import { FOMOPool_ABI } from '../../abi/FOMOPool_ABI'
+import { showCountdownTime, showFromWei, showAccount, showLongAccount, showTail } from '../../utils'
 import BN from 'bn.js'
 import moment from 'moment'
 
@@ -26,7 +26,7 @@ class FOMO extends Component {
         local: {},
         poolInfos: [],
         userPoolJoins: {},
-        invitor: ZERO_ADDRESS,
+        releaseCountdown:['','','','']
     }
     constructor(props) {
         super(props);
@@ -78,160 +78,142 @@ class FOMO extends Component {
         }
         try {
             const web3 = new Web3(Web3.givenProvider);
-            const fomoContract = new web3.eth.Contract(FOMO_Abi, WalletState.config.FOMO);
+            const fomoContract = new web3.eth.Contract(FOMOPool_ABI, WalletState.config.FOMO);
 
             //获取基本信息
             const baseInfo = await fomoContract.methods.getBaseInfo().call();
-            //USDT代币合约
-            let usdtAddress = baseInfo[0];
-            //USDT代币精度
-            let usdtDecimals = parseInt(baseInfo[1]);
-            //USDT代币符号
-            let usdtSymbol = baseInfo[2];
-            //FOMO代币合约
-            let tokenAddress = baseInfo[3];
-            //FOMO代币精度
-            let tokenDecimals = parseInt(baseInfo[4]);
-            //FOMO代币符号
-            let tokenSymbol = baseInfo[5];
-            //每次参与需要USDT数量
-            let perUsdtAmount = baseInfo[6];
-            //损失奖励代币数量
-            let perTokenAmount = baseInfo[7];
-            //创建池子价格
-            let poolCreatePrice = baseInfo[8];
+            //代币合约
+            let tokenAddress = baseInfo[0];
+            //代币精度
+            let tokenDecimals = parseInt(baseInfo[1]);
+            //代币符号
+            let tokenSymbol = baseInfo[2];
+            //门票合约
+            let ticketAddress = baseInfo[3];
+            //门票精度
+            let ticketDecimals = parseInt(baseInfo[4]);
+            //门票符号
+            let ticketSymbol = baseInfo[5];
+            //总参与金额
+            let totalJoinTokenAmount = baseInfo[6];
+            //总参与次数
+            let totalJoinCount = parseInt(baseInfo[7]);
+            //当前时间，时间戳，秒
+            let nowTime = parseInt(baseInfo[8]);
 
-            //获取全部池子基本信息
-            let allPoolBaseInfo = await fomoContract.methods.getAllPoolBaseInfo().call();
-            //最新场次Id
-            let pids = allPoolBaseInfo[0];
-            //池子创建者，为0是公共池子
-            let creators = allPoolBaseInfo[1];
-            //池子创建者手续费
-            let creatorFeeAmounts = allPoolBaseInfo[2];
+            this.setState({
+                tokenAddress: tokenAddress,
+                tokenDecimals: tokenDecimals,
+                tokenSymbol: tokenSymbol,
+                ticketAddress: ticketAddress,
+                ticketDecimals: ticketDecimals,
+                ticketSymbol: ticketSymbol,
+                totalJoinTokenAmount: showFromWei(totalJoinTokenAmount, tokenDecimals, 2),
+                totalJoinCount: totalJoinCount,
+            });
 
             //获取全部FOMO池子当前场次信息
             let allPoolInfo = await fomoContract.methods.getAllPoolInfo().call();
-            //奖池USDT数量
-            let poolRewards = allPoolInfo[0];
-            //开奖时间
-            let rewardTimes = allPoolInfo[1];
-            //总参与次数
-            let accountLens = allPoolInfo[2];
-            //最近参与地址
-            let showAccountss = allPoolInfo[3];
-            //最近参与时间
-            let showAccountTimess = allPoolInfo[4];
-            //前一场获奖地址
-            let lastRewardAccounts = allPoolInfo[5];
-            //区块时间
-            let blockTime = parseInt(allPoolInfo[6]);
+            //当前场次ID
+            let currentPoolIds = allPoolInfo[0];
+            //参与需要代币数量
+            let perTokenAmounts = allPoolInfo[1];
+            //参与需要门票数量
+            let perTicketAmounts = allPoolInfo[2];
+            //开奖需要参与多少次
+            let joinCounts = allPoolInfo[3];
+            //池子总参与次数
+            let poolTotalJoinCounts = allPoolInfo[4];
+            //结束时间
+            let endTimes = allPoolInfo[5];
+            //状态：0表示未开启，1表示开启
+            let statuss = allPoolInfo[6];
+            //上一场奖励地址
+            let lastRewardAddresss = allPoolInfo[7];
+            //参与地址列表
+            let accountss = allPoolInfo[8];
 
             let poolInfos = [];
-            let len = poolRewards.length;
+            let len = currentPoolIds.length;
             for (let i = 0; i < len; ++i) {
-                let poolReward = poolRewards[i];
-                let rewardTime = parseInt(rewardTimes[i]);
-                let showAccounts = showAccountss[i];
-                let accounts = [];
-                let showAccountTimes = showAccountTimess[i];
-                //最近购买地址和时间
-                for (let j = 0; j < showAccounts.length; j++) {
-                    accounts.push({
-                        account: showAccounts[j],
-                        time: this.formatTime(parseInt(showAccountTimes[j])),
-                    });
-                }
-                let lastRewardAccount = lastRewardAccounts[i];
+                let currentPoolId = parseInt(currentPoolIds[i]);
+                let perTokenAmount = new BN(perTokenAmounts[i], 10);
+                let perTicketAmount = new BN(perTicketAmounts[i], 10);
+                let joinCount = parseInt(joinCounts[i]);
+                let poolTotalJoinCount = parseInt(poolTotalJoinCounts[i]);
+                let endTime = parseInt(endTimes[i]);
+                let status = parseInt(statuss[i]);
+                let lastRewardAddress = lastRewardAddresss[i];
+                let accounts = accountss[i];
+
                 poolInfos.push({
-                    //期数
-                    pid: parseInt(pids[i]),
-                    //创建者
-                    creator: creators[i],
-                    //创建者手续费
-                    creatorFeeAmount: showFromWei(creatorFeeAmounts[i], usdtDecimals, 2),
-                    poolReward: showFromWei(poolReward, usdtDecimals, 2),
-                    accountLen: parseInt(accountLens[i]),
-                    countdown: showCountdownTime(rewardTime - blockTime),
+                    currentPoolId: currentPoolId,
+                    perTokenAmount: perTokenAmount,
+                    showPerTokenAmount: showFromWei(perTokenAmount, tokenDecimals, 2),
+                    perTicketAmount: perTicketAmount,
+                    showPerTicketAmount: showFromWei(perTicketAmount, ticketDecimals, 2),
+                    joinCount: joinCount,
+                    poolTotalJoinCount: poolTotalJoinCount,
+                    status: status,
+                    lastRewardAddress: lastRewardAddress,
+                    countdown: showCountdownTime(endTime - nowTime),
                     accounts: accounts,
-                    lastRewardAccount: lastRewardAccount,
                 });
             }
 
             let account = WalletState.wallet.account;
             if (account) {
-                //获取用户基本信息
+                //获取用户信息
                 const userInfo = await fomoContract.methods.getUserInfo(account).call();
-                //出局奖励
-                let queueUsdtReward = userInfo[0];
-                //奖池奖励
-                let poolUsdtReward = userInfo[1];
-                //邀请奖励
-                let inviteUsdtReward = userInfo[2];
-                //代币奖励
-                let tokenReward = userInfo[3];
-                //是否参与过FOMO
-                let isActive = userInfo[4];
-                //团队人数：统计9级
-                let teamNum = parseInt(userInfo[5]);
-                //邀请奖励层次
-                let inviteRewardLevel = parseInt(userInfo[6]);
-                //USDT余额
-                let usdtBalance = userInfo[7];
-                //USDT授权给预售合约的额度
-                let usdtAllowance = userInfo[8];
-                //FOMO代币余额
-                let tokenBalance = userInfo[9];
-                //已领取FOMO代币
-                let claimedToken = userInfo[10];
-                //团队业绩
-                let teamAmount = userInfo[11];
+                //待领取未成团退回本金
+                let pendingTokenAmount = userInfo[0];
+                //待领取未成团退回门票
+                let pendingTicketAmount = userInfo[1];
+                //待领取成团退回本金
+                let pendingReleaseTokenAmount = userInfo[2];
+                //待领取成团退回门票
+                let pendingReleaseTicketAmount = userInfo[3];
+                //待领取成团收益奖励
+                let pendingReleaseRewardTokenAmount = userInfo[4];
+                //释放时间
+                let releaseTime = parseInt(userInfo[5]);
+                //代币余额
+                let tokenBalance = new BN(userInfo[6], 10);
+                //代币授权额度
+                let tokenAllowance = new BN(userInfo[7], 10);
+                //门票余额
+                let ticketBalance = new BN(userInfo[8], 10);
+                //门票授权额度
+                let ticketAllowance = new BN(userInfo[9], 10);
+                //一期奖励额度
+                let mxcPoolReward = new BN(userInfo[10], 10);
 
-                //获取上级邀请人
-                const invitor = await fomoContract.methods._invitor(account).call();
-
-                //获取用户全部池子本期参与次数，出局次数
-                const userAllPoolInfo = await fomoContract.methods.getUserAllPoolInfo(account).call();
-                //总参与次数，数组，和池子一一对应
-                let joinNums = userAllPoolInfo[0];
-                //出局次数
-                let queueRewardNums = userAllPoolInfo[1];
-                //是否已经统计代币奖励
-                let cals = userAllPoolInfo[2];
+                //获取用户全部池子本期是否参与
+                const userAllPoolJoined = await fomoContract.methods.getUserAllPoolJoined(account).call();
                 for (let i = 0; i < len; ++i) {
-                    poolInfos[i].joinNum = parseInt(joinNums[i]);
-                    poolInfos[i].queueRewardNum = parseInt(queueRewardNums[i]);
-                    poolInfos[i].cal = cals[i];
+                    poolInfos[i].userJoined = userAllPoolJoined[i];
                 }
 
                 this.setState({
-                    queueUsdtReward: showFromWei(queueUsdtReward, usdtDecimals, 2),
-                    poolUsdtReward: showFromWei(poolUsdtReward, usdtDecimals, 2),
-                    inviteUsdtReward: showFromWei(inviteUsdtReward, usdtDecimals, 2),
-                    tokenReward: showFromWei(tokenReward, tokenDecimals, 2),
-                    teamNum: teamNum,
-                    inviteRewardLevel: inviteRewardLevel,
-                    usdtBalance: usdtBalance,
-                    showUsdtBalance: showFromWei(usdtBalance, usdtDecimals, 2),
-                    usdtAllowance: usdtAllowance,
+                    pendingTokenAmount: showFromWei(pendingTokenAmount, tokenDecimals, 2),
+                    pendingTicketAmount: showFromWei(pendingTicketAmount, ticketDecimals, 2),
+
+                    pendingReleaseTokenAmount: showFromWei(pendingReleaseTokenAmount, tokenDecimals, 2),
+                    pendingReleaseTicketAmount: showFromWei(pendingReleaseTicketAmount, ticketDecimals, 2),
+                    pendingReleaseRewardTokenAmount: showFromWei(pendingReleaseRewardTokenAmount, tokenDecimals, 2),
+                    releaseCountdown: showCountdownTime(releaseTime - nowTime),
+
+                    tokenBalance: tokenBalance,
                     showTokenBalance: showFromWei(tokenBalance, tokenDecimals, 2),
-                    invitor: invitor,
-                    claimedToken: showFromWei(claimedToken, tokenDecimals, 2),
-                    teamAmount: showFromWei(teamAmount, usdtDecimals, 2),
+                    tokenAllowance: tokenAllowance,
+                    ticketBalance: ticketBalance,
+                    showTicketBalance: showFromWei(ticketBalance, ticketDecimals, 2),
+                    ticketAllowance: ticketAllowance,
+                    mxcPoolReward: showFromWei(mxcPoolReward, tokenDecimals, 2),
                 });
             }
 
             this.setState({
-                usdtAddress: usdtAddress,
-                usdtDecimals: usdtDecimals,
-                usdtSymbol: usdtSymbol,
-                tokenAddress: tokenAddress,
-                tokenDecimals: tokenDecimals,
-                tokenSymbol: tokenSymbol,
-                perUsdtAmount: perUsdtAmount,
-                showPerUsdtAmount: showFromWei(perUsdtAmount, usdtDecimals, 2),
-                poolCreatePrice: poolCreatePrice,
-                showPoolCreatePrice: showFromWei(poolCreatePrice, usdtDecimals, 2),
                 poolInfos: poolInfos
             });
         } catch (e) {
@@ -239,10 +221,6 @@ class FOMO extends Component {
             toast.show(e.message);
         } finally {
         }
-    }
-
-    formatTime(timestamp) {
-        return moment(new BN(timestamp, 10).mul(new BN(1000)).toNumber()).format("MM-DD HH:mm");
     }
 
     async join(index, e) {
@@ -255,36 +233,51 @@ class FOMO extends Component {
             this.connectWallet();
             return;
         }
-        let cost = new BN(this.state.perUsdtAmount, 10);
-        //USDT 余额
-        var usdtBalance = new BN(this.state.usdtBalance, 10);
-        if (usdtBalance.lt(cost)) {
-            toast.show(this.state.usdtSymbol + "余额不足");
+        let item = this.state.poolInfos[index];
+        let tokenAmount = item.perTokenAmount;
+        //代币余额
+        var tokenBalance = this.state.tokenBalance;
+        if (tokenBalance.lt(tokenAmount)) {
+            toast.show(this.state.tokenSymbol + "余额不足");
+            // return;
+        }
+
+        let ticketAmount = item.perTicketAmount;
+        //门票余额
+        var ticketBalance = this.state.ticketBalance;
+        if (ticketBalance.lt(ticketAmount)) {
+            toast.show(this.state.ticketSymbol + "余额不足");
             // return;
         }
         loading.show();
         try {
             const web3 = new Web3(Web3.givenProvider);
-            let approvalNum = new BN(this.state.usdtAllowance, 10);
-            //授权额度不够了，需要重新授权
-            if (approvalNum.lt(cost)) {
-                const usdtContract = new web3.eth.Contract(ERC20_ABI, this.state.usdtAddress);
-                var transaction = await usdtContract.methods.approve(WalletState.config.FOMO, MAX_INT).send({ from: account });
+            let tokenAllowance = new BN(this.state.tokenAllowance, 10);
+            //代币授权额度不够了，需要重新授权
+            if (tokenAllowance.lt(tokenAmount)) {
+                const tokenContract = new web3.eth.Contract(ERC20_ABI, this.state.tokenAddress);
+                var transaction = await tokenContract.methods.approve(WalletState.config.FOMO, MAX_INT).send({ from: account });
                 if (!transaction.status) {
-                    toast.show("授权失败");
+                    toast.show("代币授权失败");
                     return;
                 }
             }
-            const fomoContract = new web3.eth.Contract(FOMO_Abi, WalletState.config.FOMO);
-            //购买
-            let invitor = this.getRef();
-            if (!invitor) {
-                invitor = ZERO_ADDRESS;
+
+            let ticketAllowance = new BN(this.state.ticketAllowance, 10);
+            //门票授权额度不够了，需要重新授权
+            if (ticketAllowance.lt(ticketAmount)) {
+                const ticketContract = new web3.eth.Contract(ERC20_ABI, this.state.ticketAddress);
+                var transaction = await ticketContract.methods.approve(WalletState.config.FOMO, MAX_INT).send({ from: account });
+                if (!transaction.status) {
+                    toast.show("门票授权失败");
+                    return;
+                }
             }
-            var estimateGas = await fomoContract.methods.join(index, invitor).estimateGas({ from: account });
-            var transaction = await fomoContract.methods.join(index, invitor).send({ from: account });
+            const fomoContract = new web3.eth.Contract(FOMOPool_ABI, WalletState.config.FOMO);
+            var estimateGas = await fomoContract.methods.join(index).estimateGas({ from: account });
+            var transaction = await fomoContract.methods.join(index).send({ from: account });
             if (transaction.status) {
-                toast.show("参与FOMO成功");
+                toast.show("参与成功");
             } else {
                 toast.show("参与失败");
             }
@@ -296,54 +289,8 @@ class FOMO extends Component {
         }
     }
 
-    async createPool(e) {
-        if (WalletState.wallet.chainId != CHAIN_ID) {
-            toast.show(CHAIN_ERROR_TIP);
-            return;
-        }
-        let account = WalletState.wallet.account;
-        if (!account) {
-            this.connectWallet();
-            return;
-        }
-        let cost = new BN(this.state.poolCreatePrice, 10);
-        //USDT 余额
-        var usdtBalance = new BN(this.state.usdtBalance, 10);
-        if (usdtBalance.lt(cost)) {
-            toast.show(this.state.usdtSymbol + "余额不足");
-            // return;
-        }
-        loading.show();
-        try {
-            const web3 = new Web3(Web3.givenProvider);
-            let approvalNum = new BN(this.state.usdtAllowance, 10);
-            //授权额度不够了，需要重新授权
-            if (approvalNum.lt(cost)) {
-                const usdtContract = new web3.eth.Contract(ERC20_ABI, this.state.usdtAddress);
-                var transaction = await usdtContract.methods.approve(WalletState.config.FOMO, MAX_INT).send({ from: account });
-                if (!transaction.status) {
-                    toast.show("授权失败");
-                    return;
-                }
-            }
-            const fomoContract = new web3.eth.Contract(FOMO_Abi, WalletState.config.FOMO);
-            //创建池子
-            var estimateGas = await fomoContract.methods.createPool().estimateGas({ from: account });
-            var transaction = await fomoContract.methods.createPool().send({ from: account });
-            if (transaction.status) {
-                toast.show("创建FOMO池成功");
-            } else {
-                toast.show("创建失败");
-            }
-        } catch (e) {
-            console.log("e", e);
-            toast.show(e.message);
-        } finally {
-            loading.hide();
-        }
-    }
-
-    async claim() {
+    //领取未成团退回本金
+    async claimReward() {
         let account = WalletState.wallet.account;
         if (!account) {
             this.connectWallet();
@@ -352,7 +299,7 @@ class FOMO extends Component {
         loading.show();
         try {
             const web3 = new Web3(Web3.givenProvider);
-            const fomoContract = new web3.eth.Contract(FOMO_Abi, WalletState.config.FOMO);
+            const fomoContract = new web3.eth.Contract(FOMOPool_ABI, WalletState.config.FOMO);
             var estimateGas = await fomoContract.methods.claimReward().estimateGas({ from: account });
             var transaction = await fomoContract.methods.claimReward().send({ from: account });
             if (transaction.status) {
@@ -368,44 +315,30 @@ class FOMO extends Component {
         }
     }
 
-    //获取邀请人
-    getRef() {
-        //先从链接获取，如果有，直接使用
-        var url = window.location.href;
-        var obj = new Object();
-        var scan_url = url.split("?");
-        if (2 == scan_url.length) {
-            scan_url = scan_url[1];
-            var strs = scan_url.split("&");
-            for (var x in strs) {
-                var arr = strs[x].split("=");
-                obj[arr[0]] = arr[1];
-                //链接里有邀请人
-                if ("ref" == arr[0] && arr[1]) {
-                    return arr[1];
-                }
-            }
+    //领取成团释放本金和收益
+    async claimLockReward() {
+        let account = WalletState.wallet.account;
+        if (!account) {
+            this.connectWallet();
+            return;
         }
-        //从浏览器缓存获取，这里可能部分浏览器不支持
-        var storage = window.localStorage;
-        if (storage) {
-            return storage["ref"];
-        }
-        return null;
-    }
-
-    invite() {
-        if (WalletState.wallet.account) {
-            var url = window.location.href;
-            url = url.split("?")[0];
-            let inviteLink = url + "?ref=" + WalletState.wallet.account;
-            if (copy(inviteLink)) {
-                toast.show("邀请链接已复制")
+        loading.show();
+        try {
+            const web3 = new Web3(Web3.givenProvider);
+            const fomoContract = new web3.eth.Contract(FOMOPool_ABI, WalletState.config.FOMO);
+            var estimateGas = await fomoContract.methods.claimLockReward().estimateGas({ from: account });
+            var transaction = await fomoContract.methods.claimLockReward().send({ from: account });
+            if (transaction.status) {
+                toast.show("领取成功");
             } else {
-                toast.show("邀请失败")
+                toast.show("领取失败");
             }
+        } catch (e) {
+            console.log("e", e);
+            toast.show(e.message);
+        } finally {
+            loading.hide();
         }
-
     }
 
     connectWallet() {
@@ -418,135 +351,90 @@ class FOMO extends Component {
                 <Header></Header>
                 <div className='Module ModuleTop'>
                     <div className='ModuleContentWitdh RuleTitle'>
-                        <div>代币余额</div>
-                        <div>{this.state.showTokenBalance}{this.state.tokenSymbol}</div>
-                    </div>
-
-                    <div className='ModuleContentWitdh RuleTitle mt20'>
-                        <div>出局奖励</div>
-                        <div>{this.state.queueUsdtReward}{this.state.usdtSymbol}</div>
+                        <div>总参与次数</div>
+                        <div>{this.state.totalJoinCount}</div>
                     </div>
 
                     <div className='ModuleContentWitdh RuleTitle'>
-                        <div>奖池奖励</div>
-                        <div>{this.state.poolUsdtReward}{this.state.usdtSymbol}</div>
+                        <div>总参与金额</div>
+                        <div>{this.state.totalJoinTokenAmount}{this.state.tokenSymbol}</div>
+                    </div>
+
+                </div>
+
+                <div className='Module ModuleTop'>
+                    <div className='ModuleContentWitdh RuleTitle'>
+                        <div>未成团</div>
+                        <div>{this.state.pendingTokenAmount}{this.state.tokenSymbol} / {this.state.pendingTicketAmount}{this.state.ticketSymbol}</div>
+                    </div>
+
+                    <div className='mt10 prettyBg button' onClick={this.claimReward.bind(this)}>领取</div>
+
+                </div>
+
+                <div className='Module ModuleTop'>
+                    <div className='ModuleContentWitdh RuleTitle'>
+                        <div>成团本金</div>
+                        <div>{this.state.pendingReleaseTokenAmount}{this.state.tokenSymbol} / {this.state.pendingReleaseTicketAmount}{this.state.ticketSymbol}</div>
                     </div>
 
                     <div className='ModuleContentWitdh RuleTitle'>
-                        <div>邀请奖励</div>
-                        <div>{this.state.inviteUsdtReward}{this.state.usdtSymbol}</div>
+                        <div>收益/额度</div>
+                        <div>{this.state.pendingReleaseRewardTokenAmount}{this.state.tokenSymbol} / {this.state.mxcPoolReward}{this.state.tokenSymbol}</div>
                     </div>
 
                     <div className='ModuleContentWitdh RuleTitle'>
-                        <div>代币奖励</div>
-                        <div>{this.state.tokenReward}{this.state.tokenSymbol}</div>
+                        <div>释放倒计时</div>
+                        <div>{this.state.releaseCountdown[0]}:{this.state.releaseCountdown[1]}:{this.state.releaseCountdown[2]}:{this.state.releaseCountdown[3]}</div>
                     </div>
 
-                    <div className='ModuleContentWitdh RuleTitle'>
-                        <div>已领取代币</div>
-                        <div>{this.state.claimedToken}{this.state.tokenSymbol}</div>
+                    <div className='mt10 prettyBg button' onClick={this.claimLockReward.bind(this)}>领取</div>
+                </div>
+
+                <div className='Module ModuleTop'>
+                    <div className='ModuleContentWitdh RuleTitle mt5'>
+                        <div>余额</div>
+                        <div>{this.state.showTokenBalance}{this.state.tokenSymbol} / {this.state.showTicketBalance}{this.state.ticketSymbol}</div>
                     </div>
 
-                    <div className='ModuleContentWitdh RuleTitle mt20'>
-                        <div className='RuleTitleBg prettyBg' onClick={this.invite.bind(this)}>
-                            <img className='clock' src={IconInvite}></img>
-                            <div className='Tip'>邀请好友</div>
-                        </div>
-
-                        <div className='RuleTitleBg prettyBg' onClick={this.claim.bind(this)}>
-                            <img className='clock' src={IconInvite}></img>
-                            <div className='Tip'>领取奖励</div>
-                        </div>
-                    </div>
-
-                    <div className='ModuleContentWitdh RuleTitle'>
-                        <div>奖励层次</div>
-                        <div>{this.state.inviteRewardLevel}</div>
-                    </div>
-
-                    <div className='ModuleContentWitdh RuleTitle'>
-                        <div>团队人数</div>
-                        <div>{this.state.teamNum}</div>
-                    </div>
-                    <div className='ModuleContentWitdh RuleTitle'>
-                        <div>团队业绩</div>
-                        <div>{this.state.teamAmount}</div>
-                    </div>
-                    <div className='ModuleContentWitdh RuleTitle'>
-                        <div>上级邀请人</div>
-                        <div>{showLongAccount(this.state.invitor)}</div>
-                    </div>
                 </div>
 
                 {this.state.poolInfos.map((item, index) => {
                     return <div className='Module ModuleTop' key={index}>
-                        <div>{index + 1} 号池子第 {item.pid+1} 期，总参与次数：{item.accountLen}</div>
+                        <div className='ModuleContentWitdh RuleTitle'>
+                            <div>{index + 1}号房，累计{item.poolTotalJoinCount}次</div>
+                            <div>{item.status == 0 ? '未启动' : item.userJoined ? "待开奖" : "可参与"}</div>
+                        </div>
+
+                        <div className='ModuleContentWitdh RuleTitle'>
+                            <div>参与人数</div>
+                            <div>{item.accounts.length}/{item.joinCount}</div>
+                        </div>
 
                         <div className='ModuleContentWitdh RuleTitle'>
                             <div>开奖倒计时</div>
-                            <div>{item.countdown[0]}:{item.countdown[1]}:{item.countdown[2]}</div>
+                            <div>{item.countdown[0]}:{item.countdown[1]}:{item.countdown[2]}:{item.countdown[3]}</div>
                         </div>
 
-                        <div className='ModuleContentWitdh RuleTitle'>
-                            <div>本次FOMO奖池</div>
-                            <div>{item.poolReward} {this.state.usdtSymbol}</div>
+                        <div className='Accounts'>
+                            {
+                                item.accounts.map((i, j) => {
+                                    return <div className='AccountItem' key={j}>
+                                        {showTail(i)}
+                                    </div>
+                                })
+                            }
                         </div>
 
-                        <div className='mt10 prettyBg button' onClick={this.join.bind(this, index)}>支付{this.state.showPerUsdtAmount}{this.state.usdtSymbol}参与</div>
-                        <div className='ModuleContentWitdh RuleTitle'>
-                            <div>我的余额</div>
-                            <div>{this.state.showUsdtBalance}{this.state.usdtSymbol}</div>
-                        </div>
-                        <div className='ModuleContentWitdh RuleTitle'>
-                            <div>我的参与次数</div>
-                            <div>{item.joinNum}</div>
-                        </div>
-                        <div className='ModuleContentWitdh RuleTitle'>
-                            <div>我的出局次数</div>
-                            <div>{item.queueRewardNum}</div>
-                        </div>
-
-                        <div className='ModuleContentWitdh RuleTitle mt20'>
-                            <div>最近FOMO地址</div>
-                            <div>时间</div>
-                        </div>
-
-                        {
-                            item.accounts.map((i, j) => {
-                                return <div className='ModuleContentWitdh RuleTitle' key={j}>
-                                    <div>{showLongAccount(i.account)}</div>
-                                    <div>{i.time}</div>
-                                </div>
-                            })
-                        }
-
-                        <div className='ModuleContentWitdh RuleTitle mt20'>
+                        <div className='mt10 prettyBg button' onClick={this.join.bind(this, index)}>{item.showPerTokenAmount}{this.state.tokenSymbol} + {item.showPerTicketAmount}{this.state.ticketSymbol}参与</div>
+                        <div className='ModuleContentWitdh RuleTitle mt5'>
                             <div>上一期中奖地址</div>
-                            <div>{showLongAccount(item.lastRewardAccount)}</div>
-                        </div>
-
-                        <div className='ModuleContentWitdh RuleTitle mt20'>
-                            <div>创建者地址</div>
-                            <div>{showLongAccount(item.creator)}</div>
-                        </div>
-                        <div className='ModuleContentWitdh RuleTitle'>
-                            <div>创建者手续费</div>
-                            <div>{item.creatorFeeAmount}</div>
+                            <div>{showLongAccount(item.lastRewardAddress)}</div>
                         </div>
                     </div>
                 })}
 
-                <div className='Module ModuleTop'>
-                    <div className='ModuleContentWitdh RuleTitle'>
-                        <div>创建池子价格</div>
-                        <div>{this.state.showPoolCreatePrice}{this.state.usdtSymbol}</div>
-                    </div>
-                    <div className='mt10 prettyBg button' onClick={this.createPool.bind(this)}>创建新FOMO池</div>
-                    <div className='ModuleContentWitdh RuleTitle'>
-                        <div>余额</div>
-                        <div>{this.state.showUsdtBalance}{this.state.usdtSymbol}</div>
-                    </div>
-                </div>
+                <div className='mt20'></div>
             </div>
         );
     }

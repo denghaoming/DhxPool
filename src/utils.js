@@ -38,6 +38,13 @@ export function showAccount(account) {
     return "";
 }
 
+export function showTail(account) {
+    if (account) {
+        return account.substring(account.length - 4, account.length);
+    }
+    return "";
+}
+
 export function showLongAccount(account) {
     if (account) {
         return account.substring(0, 8) + "..." + account.substring(account.length - 8, account.length);
