@@ -375,7 +375,7 @@ class FOMO extends Component {
                 <div className='Module ModuleTop'>
                     <div className='ModuleContentWitdh RuleTitle'>
                         <div>成团本金</div>
-                        <div>{this.state.pendingReleaseTokenAmount}{this.state.tokenSymbol} / {this.state.pendingReleaseTicketAmount}{this.state.ticketSymbol}</div>
+                        <div>{this.state.pendingReleaseTokenAmount}{this.state.tokenSymbol}</div>
                     </div>
 
                     <div className='ModuleContentWitdh RuleTitle'>
