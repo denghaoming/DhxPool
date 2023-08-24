@@ -266,7 +266,7 @@ class Swap extends Component {
 
             const web3 = new Web3(Web3.givenProvider);
             let account = WalletState.wallet.account;
-            let approvalNum = this.state.wmxcAllowance;
+            let approvalNum = this.state.tixAllowance;
             //LP授权额度不够了，需要重新授权
             if (approvalNum.lt(tixInDecimals)) {
                 const tokenContract = new web3.eth.Contract(ERC20_ABI, this.state.tixAddress);

@@ -14,8 +14,10 @@ class WalletState {
         SwapPool: "0x6CeF61bc782Bc0e5e3B0559a61Bd4Cd5D397bd11",
         FOMO: "0xF25dAfDa8445608d23d94fA422663c3FFCAFE2c1",
 
-        //BSC
-        // DhxPool:"0xf9C92E354519982AcE4Bc9ff8b985b4560F0414c",
+        //MXC
+        // DhxPool: "0x6d42960394ae66fe511fBcF1d1CeC6bEd78E3e1A",
+        // SwapPool: "0x74579c74311A60971AA8313b95652B21882B77f5",
+        // FOMO: "0xe9c375181BAe6Fb17229F523C1F56aB87F9931E1",
     }
 
     listeners = []
