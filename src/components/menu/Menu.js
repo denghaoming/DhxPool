@@ -78,6 +78,7 @@ class Menu extends Component {
                             <li onClick={this.routerTo.bind(this, "/")}>首页</li>
                             <li onClick={this.routerTo.bind(this, "/swap")}>兑换池</li>
                             <li onClick={this.routerTo.bind(this, "/fomo")}>FOMO</li>
+                            <li onClick={this.routerTo.bind(this, "/stake")}>质押</li>
                         </ul>
                     </div>
                     <div className="flex-1" onClick={this.hideMenu}></div>

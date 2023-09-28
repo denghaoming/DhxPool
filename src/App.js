@@ -8,6 +8,7 @@ import './App.css'
 import Mint from './pages/Mint/Mint'
 import Swap from './pages/Swap/Swap'
 import FOMO from './pages/FOMO/FOMO'
+import Stake from './pages/Stake/Stake'
 
 class App extends Component {
     state = { account: null, chainId: null, shortAccount: null }
@@ -76,6 +77,7 @@ class App extends Component {
                             <Route path="/" exact element={<Mint />}></Route>
                             <Route path="/swap" exact element={<Swap />}></Route>
                             <Route path="/fomo" exact element={<FOMO />}></Route>
+                            <Route path="/stake" exact element={<Stake />}></Route>
                         </Routes>
                     </div>
                 </div>
